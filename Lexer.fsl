@@ -1,0 +1,67 @@
+{
+
+module Lexer
+
+open FSharp.Text.Lexing
+open System
+open Parser
+open PAst
+
+exception SyntaxError of string
+
+let lexeme (lexbuf : LexBuffer<char>) = new System.String(lexbuf.Lexeme)
+let newline (lexbuf:LexBuffer<_>) = lexbuf.EndPos <- lexbuf.EndPos.NextLine
+
+}
+
+let int = ['-' '+']? ['0'-'9']+
+let digit = ['0'-'9']
+let frac = '.' digit*
+let exp = ['e' 'E'] ['-' '+']? digit+
+let float = '-'? digit* frac? exp?
+let char = '\'' ( [^'\\'] | ('\\' ( '\\' | '\'' | "\"" | 'n' | 't' | 'b' | 'r'))) '\''
+let charUpper = ['A'-'Z']
+let charLower = ['a'-'z']
+let charAll = ['A'-'Z'] | ['a' - 'z'] | ['0'-'9']
+let typeName = charUpper charAll*
+let identName = charLower charAll*
+let white = [' ' '\t']+
+let newline = '\r' | '\n' | "\r\n"
+
+rule read =
+    parse
+    | white         { read lexbuf }
+    | newline       { newline lexbuf; read lexbuf }
+    | int           { INT (int (lexeme lexbuf)) }
+    | float         { FLOAT (float (lexeme lexbuf)) }
+    | typeName      { TYPENAME (lexeme lexbuf) }
+    | "interface"   { INTERFACE }
+    | "object"      { OBJECT }
+    | "import"      { IMPORT }
+    | "fn"          { FN }
+    | "struct"      { STRUCT }
+    | "enum"        { ENUM }
+    | "union"       { UNION }
+    | "{"           { LBRACE }
+    | "}"           { RBRACE }
+    | "["           { LSQB }
+    | "]"           { RSQB }
+    | "("           { LPAREN }
+    | ")"           { RPAREN }
+    | "->"          { RARROW }
+    | ","           { COMMA }
+    | ";"           { SC }
+    | ":"           { COL }
+    | "*"           { MUL }
+    | "="           { EQ }
+    | "."           { DOT }
+    | "->"          { ARROW }
+    | eof           { EOF }
+    | "//"          { readComment lexbuf }
+    | identName     { IDENTIFIER (lexeme lexbuf) }
+    | _ { raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) }
+
+and readComment =
+    parse
+    | newline { newline lexbuf; read lexbuf }
+    | _ { readComment lexbuf }

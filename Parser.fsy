@@ -1,0 +1,81 @@
+%{
+open System
+open PAst
+%}
+
+%start start
+
+%token <int> INT
+%token <float> FLOAT
+%token <string> TYPENAME
+%token <string> IDENTIFIER
+%token INTERFACE
+%token OBJECT
+%token IMPORT
+%token FN
+%token STRUCT
+%token ENUM
+%token UNION
+%token LBRACE
+%token RBRACE
+%token LSQB
+%token RSQB
+%token LPAREN
+%token RPAREN
+%token RARROW
+%token COMMA
+%token SC
+%token COL
+%token MUL
+%token EQ
+%token DOT
+%token ARROW
+%token EOF
+
+
+%type <Decl list> start
+
+%%
+
+start: aModule { $1 }
+
+aModule:
+  | EOF { [] }
+  | declList { $1 |> List.rev }
+
+declList:
+  | decl        { [$1] }
+  | declList SC decl  { $3 :: $1 }
+
+decl:
+  | importDecl  { $1 }
+  | ifaceDecl   { $1 }
+//  | objectDecl  { $1 }
+//  | unionDecl   { $1 }
+//  | enumDecl    { $1 }
+//  | structDecl  { $1 }
+//  | funcDecl    { $1 }
+
+importDecl:
+  | IMPORT TYPENAME { DeclImport $2 }
+
+ifaceDecl:
+  | INTERFACE TYPENAME LBRACE memberList RBRACE { DeclInterface ($2, $4 |> List.rev) }
+
+ty:
+  | TYPENAME                { TyName $1 }
+  | LPAREN tupleList RPAREN { TyTuple ($2 |> List.rev) }
+  | ty ARROW ty             { TyFn ($1, $3)}
+  | LSQB ty RSQB            { TyVector $2 }
+  | LSQB ty MUL INT RSQB    { TyArray ($2, $4) }
+
+tupleList:
+  | ty COMMA ty             { $3 :: [$1] }
+  | tupleList COMMA ty      { $3 :: $1 }
+
+aMember:
+  | IDENTIFIER COL ty { { Member.name = $1; Member.ty = $3 } }
+
+memberList:
+  | aMember                   { [$1] }
+  | memberList COMMA aMember  { $3 :: $1 }
