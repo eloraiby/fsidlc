@@ -11,6 +11,11 @@ exception SyntaxError of string
 
 let lexeme (lexbuf : LexBuffer<char>) = new System.String(lexbuf.Lexeme)
 let newline (lexbuf:LexBuffer<_>) = lexbuf.EndPos <- lexbuf.EndPos.NextLine
+let getPosition streamName (lexbuf: LexBuffer<char>) =
+    { Position.streamName = streamName
+      line = lexbuf.StartPos.Line
+      column = lexbuf.StartPos.Column
+      cursor = lexbuf.StartPos.AbsoluteOffset }
 
 }
 
@@ -28,13 +33,13 @@ let identName = charLower charAll*
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
 
-rule read =
+rule read streamName =
     parse
-    | white         { read lexbuf }
-    | newline       { newline lexbuf; read lexbuf }
+    | white         { read streamName lexbuf }
+    | newline       { newline lexbuf; read streamName lexbuf }
     | int           { INT (int (lexeme lexbuf)) }
     | float         { FLOAT (float (lexeme lexbuf)) }
-    | typeName      { TYPENAME (lexeme lexbuf) }
+    | typeName      { let pos = getPosition streamName lexbuf in TYPENAME (lexeme lexbuf, pos) }
     | "interface"   { INTERFACE }
     | "object"      { OBJECT }
     | "import"      { IMPORT }
@@ -57,11 +62,11 @@ rule read =
     | "."           { DOT }
     | "->"          { ARROW }
     | eof           { EOF }
-    | "//"          { readComment lexbuf }
-    | identName     { IDENTIFIER (lexeme lexbuf) }
+    | "//"          { readComment streamName lexbuf }
+    | identName     { let pos = getPosition streamName lexbuf in IDENTIFIER (lexeme lexbuf, pos) }
     | _ { raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) }
 
-and readComment =
+and readComment streamName =
     parse
-    | newline { newline lexbuf; read lexbuf }
-    | _ { readComment lexbuf }
+    | newline { newline lexbuf; read streamName lexbuf }
+    | _ { readComment streamName lexbuf }

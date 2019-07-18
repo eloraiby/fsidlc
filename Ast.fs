@@ -1,10 +1,6 @@
 module Ast
 
-type Position
-    = { streamName  : string
-        line        : int
-        column      : int
-        cursor      : int }
+open PAst
 
 type TypeName
     = Simple    of string * Position

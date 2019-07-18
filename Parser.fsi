@@ -23,8 +23,8 @@ type token =
   | IMPORT
   | OBJECT
   | INTERFACE
-  | IDENTIFIER of (string)
-  | TYPENAME of (string)
+  | IDENTIFIER of (string * Position)
+  | TYPENAME of (string * Position)
   | FLOAT of (float)
   | INT of (int)
 type tokenId = 
@@ -64,10 +64,22 @@ type nonTerminalId =
     | NONTERM_decl
     | NONTERM_importDecl
     | NONTERM_ifaceDecl
+    | NONTERM_tuple
     | NONTERM_ty
     | NONTERM_tupleList
+    | NONTERM_funcDecl
     | NONTERM_aMember
     | NONTERM_memberList
+    | NONTERM_unionCase
+    | NONTERM_caseList
+    | NONTERM_unionDecl
+    | NONTERM_structDecl
+    | NONTERM_enumCase
+    | NONTERM_enumDecl
+    | NONTERM_enumCaseList
+    | NONTERM_objectBody
+    | NONTERM_typenameList
+    | NONTERM_objectDecl
 /// This function maps tokens to integer indexes
 val tagOfToken: token -> int
 

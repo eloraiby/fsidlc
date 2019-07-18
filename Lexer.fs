@@ -12,9 +12,14 @@ exception SyntaxError of string
 
 let lexeme (lexbuf : LexBuffer<char>) = new System.String(lexbuf.Lexeme)
 let newline (lexbuf:LexBuffer<_>) = lexbuf.EndPos <- lexbuf.EndPos.NextLine
+let getPosition streamName (lexbuf: LexBuffer<char>) =
+    { Position.streamName = streamName
+      line = lexbuf.StartPos.Line
+      column = lexbuf.StartPos.Column
+      cursor = lexbuf.StartPos.AbsoluteOffset }
 
 
-# 17 "Lexer.fs"
+# 22 "Lexer.fs"
 let trans : uint16[] array = 
     [| 
     (* State 0 *)
@@ -196,171 +201,171 @@ let actions : uint16[] = [|65535us; 0us; 0us; 1us; 0us; 3us; 0us; 1us; 1us; 2us;
 let _fslex_tables = FSharp.Text.Lexing.UnicodeTables.Create(trans,actions)
 let rec _fslex_dummy () = _fslex_dummy() 
 // Rule read
-and read  lexbuf =
+and read streamName lexbuf =
   match _fslex_tables.Interpret(5,lexbuf) with
   | 0 -> ( 
-# 33 "Lexer.fsl"
-                                     read lexbuf 
-# 204 "Lexer.fs"
-          )
-  | 1 -> ( 
-# 34 "Lexer.fsl"
-                                     newline lexbuf; read lexbuf 
+# 38 "Lexer.fsl"
+                                     read streamName lexbuf 
 # 209 "Lexer.fs"
           )
-  | 2 -> ( 
-# 35 "Lexer.fsl"
-                                     INT (int (lexeme lexbuf)) 
+  | 1 -> ( 
+# 39 "Lexer.fsl"
+                                     newline lexbuf; read streamName lexbuf 
 # 214 "Lexer.fs"
           )
-  | 3 -> ( 
-# 36 "Lexer.fsl"
-                                     FLOAT (float (lexeme lexbuf)) 
+  | 2 -> ( 
+# 40 "Lexer.fsl"
+                                     INT (int (lexeme lexbuf)) 
 # 219 "Lexer.fs"
           )
-  | 4 -> ( 
-# 37 "Lexer.fsl"
-                                     TYPENAME (lexeme lexbuf) 
+  | 3 -> ( 
+# 41 "Lexer.fsl"
+                                     FLOAT (float (lexeme lexbuf)) 
 # 224 "Lexer.fs"
           )
-  | 5 -> ( 
-# 38 "Lexer.fsl"
-                                     INTERFACE 
+  | 4 -> ( 
+# 42 "Lexer.fsl"
+                                     let pos = getPosition streamName lexbuf in TYPENAME (lexeme lexbuf, pos) 
 # 229 "Lexer.fs"
           )
-  | 6 -> ( 
-# 39 "Lexer.fsl"
-                                     OBJECT 
+  | 5 -> ( 
+# 43 "Lexer.fsl"
+                                     INTERFACE 
 # 234 "Lexer.fs"
           )
-  | 7 -> ( 
-# 40 "Lexer.fsl"
-                                     IMPORT 
+  | 6 -> ( 
+# 44 "Lexer.fsl"
+                                     OBJECT 
 # 239 "Lexer.fs"
           )
-  | 8 -> ( 
-# 41 "Lexer.fsl"
-                                     FN 
+  | 7 -> ( 
+# 45 "Lexer.fsl"
+                                     IMPORT 
 # 244 "Lexer.fs"
           )
-  | 9 -> ( 
-# 42 "Lexer.fsl"
-                                     STRUCT 
+  | 8 -> ( 
+# 46 "Lexer.fsl"
+                                     FN 
 # 249 "Lexer.fs"
           )
-  | 10 -> ( 
-# 43 "Lexer.fsl"
-                                     ENUM 
+  | 9 -> ( 
+# 47 "Lexer.fsl"
+                                     STRUCT 
 # 254 "Lexer.fs"
           )
-  | 11 -> ( 
-# 44 "Lexer.fsl"
-                                     UNION 
+  | 10 -> ( 
+# 48 "Lexer.fsl"
+                                     ENUM 
 # 259 "Lexer.fs"
           )
-  | 12 -> ( 
-# 45 "Lexer.fsl"
-                                     LBRACE 
+  | 11 -> ( 
+# 49 "Lexer.fsl"
+                                     UNION 
 # 264 "Lexer.fs"
           )
-  | 13 -> ( 
-# 46 "Lexer.fsl"
-                                     RBRACE 
+  | 12 -> ( 
+# 50 "Lexer.fsl"
+                                     LBRACE 
 # 269 "Lexer.fs"
           )
-  | 14 -> ( 
-# 47 "Lexer.fsl"
-                                     LSQB 
+  | 13 -> ( 
+# 51 "Lexer.fsl"
+                                     RBRACE 
 # 274 "Lexer.fs"
           )
-  | 15 -> ( 
-# 48 "Lexer.fsl"
-                                     RSQB 
+  | 14 -> ( 
+# 52 "Lexer.fsl"
+                                     LSQB 
 # 279 "Lexer.fs"
           )
-  | 16 -> ( 
-# 49 "Lexer.fsl"
-                                     LPAREN 
+  | 15 -> ( 
+# 53 "Lexer.fsl"
+                                     RSQB 
 # 284 "Lexer.fs"
           )
-  | 17 -> ( 
-# 50 "Lexer.fsl"
-                                     RPAREN 
+  | 16 -> ( 
+# 54 "Lexer.fsl"
+                                     LPAREN 
 # 289 "Lexer.fs"
           )
-  | 18 -> ( 
-# 51 "Lexer.fsl"
-                                     RARROW 
+  | 17 -> ( 
+# 55 "Lexer.fsl"
+                                     RPAREN 
 # 294 "Lexer.fs"
           )
-  | 19 -> ( 
-# 52 "Lexer.fsl"
-                                     COMMA 
+  | 18 -> ( 
+# 56 "Lexer.fsl"
+                                     RARROW 
 # 299 "Lexer.fs"
           )
-  | 20 -> ( 
-# 53 "Lexer.fsl"
-                                     SC 
+  | 19 -> ( 
+# 57 "Lexer.fsl"
+                                     COMMA 
 # 304 "Lexer.fs"
           )
-  | 21 -> ( 
-# 54 "Lexer.fsl"
-                                     COL 
+  | 20 -> ( 
+# 58 "Lexer.fsl"
+                                     SC 
 # 309 "Lexer.fs"
           )
-  | 22 -> ( 
-# 55 "Lexer.fsl"
-                                     MUL 
+  | 21 -> ( 
+# 59 "Lexer.fsl"
+                                     COL 
 # 314 "Lexer.fs"
           )
-  | 23 -> ( 
-# 56 "Lexer.fsl"
-                                     EQ 
+  | 22 -> ( 
+# 60 "Lexer.fsl"
+                                     MUL 
 # 319 "Lexer.fs"
           )
-  | 24 -> ( 
-# 57 "Lexer.fsl"
-                                     DOT 
+  | 23 -> ( 
+# 61 "Lexer.fsl"
+                                     EQ 
 # 324 "Lexer.fs"
           )
-  | 25 -> ( 
-# 58 "Lexer.fsl"
-                                     ARROW 
+  | 24 -> ( 
+# 62 "Lexer.fsl"
+                                     DOT 
 # 329 "Lexer.fs"
           )
-  | 26 -> ( 
-# 59 "Lexer.fsl"
-                                     EOF 
+  | 25 -> ( 
+# 63 "Lexer.fsl"
+                                     ARROW 
 # 334 "Lexer.fs"
           )
-  | 27 -> ( 
-# 60 "Lexer.fsl"
-                                     readComment lexbuf 
+  | 26 -> ( 
+# 64 "Lexer.fsl"
+                                     EOF 
 # 339 "Lexer.fs"
           )
-  | 28 -> ( 
-# 61 "Lexer.fsl"
-                                     IDENTIFIER (lexeme lexbuf) 
+  | 27 -> ( 
+# 65 "Lexer.fsl"
+                                     readComment streamName lexbuf 
 # 344 "Lexer.fs"
           )
-  | 29 -> ( 
-# 62 "Lexer.fsl"
-                         raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) 
+  | 28 -> ( 
+# 66 "Lexer.fsl"
+                                     let pos = getPosition streamName lexbuf in IDENTIFIER (lexeme lexbuf, pos) 
 # 349 "Lexer.fs"
+          )
+  | 29 -> ( 
+# 67 "Lexer.fsl"
+                         raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) 
+# 354 "Lexer.fs"
           )
   | _ -> failwith "read"
 // Rule readComment
-and readComment  lexbuf =
+and readComment streamName lexbuf =
   match _fslex_tables.Interpret(0,lexbuf) with
   | 0 -> ( 
-# 66 "Lexer.fsl"
-                               newline lexbuf; read lexbuf 
-# 358 "Lexer.fs"
+# 71 "Lexer.fsl"
+                               newline lexbuf; read streamName lexbuf 
+# 363 "Lexer.fs"
           )
   | 1 -> ( 
-# 67 "Lexer.fsl"
-                         readComment lexbuf 
-# 363 "Lexer.fs"
+# 72 "Lexer.fsl"
+                         readComment streamName lexbuf 
+# 368 "Lexer.fs"
           )
   | _ -> failwith "readComment"
 

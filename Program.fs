@@ -1,9 +1,9 @@
 ﻿open System
 open FSharp.Text.Lexing
 
-let parse schizo =
+let parse streamName schizo =
     let lexbuf = LexBuffer<char>.FromString schizo
-    let res = Parser.start (Lexer.read) lexbuf
+    let res = Parser.start (Lexer.read streamName) lexbuf
     res
 
 let (|>!) (a: 'A) (b: 'A -> 'B) = b a |> ignore; a
@@ -20,6 +20,6 @@ interface T {
     vectorField : [Char]
 }
         """
-    let result = parse test
+    let result = parse "test" test
     printfn "%A" result
     0 // return an integer exit code

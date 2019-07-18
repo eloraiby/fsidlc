@@ -7,8 +7,8 @@ open PAst
 
 %token <int> INT
 %token <float> FLOAT
-%token <string> TYPENAME
-%token <string> IDENTIFIER
+%token <string * Position> TYPENAME
+%token <string * Position> IDENTIFIER
 %token INTERFACE
 %token OBJECT
 %token IMPORT
@@ -44,17 +44,17 @@ aModule:
   | declList { $1 |> List.rev }
 
 declList:
-  | decl        { [$1] }
-  | declList SC decl  { $3 :: $1 }
+  | decl          { [$1] }
+  | declList decl { $2 :: $1 }
 
 decl:
   | importDecl  { $1 }
   | ifaceDecl   { $1 }
-//  | objectDecl  { $1 }
-//  | unionDecl   { $1 }
-//  | enumDecl    { $1 }
-//  | structDecl  { $1 }
-//  | funcDecl    { $1 }
+  | objectDecl  { $1 }
+  | unionDecl   { $1 }
+  | enumDecl    { $1 }
+  | structDecl  { $1 }
+  | funcDecl    { $1 }
 
 importDecl:
   | IMPORT TYPENAME { DeclImport $2 }
@@ -62,10 +62,13 @@ importDecl:
 ifaceDecl:
   | INTERFACE TYPENAME LBRACE memberList RBRACE { DeclInterface ($2, $4 |> List.rev) }
 
+tuple:
+  | LPAREN tupleList RPAREN { $2 |> List.rev }
+
 ty:
   | TYPENAME                { TyName $1 }
-  | LPAREN tupleList RPAREN { TyTuple ($2 |> List.rev) }
-  | ty ARROW ty             { TyFn ($1, $3)}
+  | tuple ARROW ty          { TyFn ($1, $3)}
+  | tuple                   { TyTuple $1 }
   | LSQB ty RSQB            { TyVector $2 }
   | LSQB ty MUL INT RSQB    { TyArray ($2, $4) }
 
@@ -73,9 +76,47 @@ tupleList:
   | ty COMMA ty             { $3 :: [$1] }
   | tupleList COMMA ty      { $3 :: $1 }
 
+funcDecl:
+  | FN IDENTIFIER tuple ARROW ty { DeclFunc ($2, $3, $5) }
+
 aMember:
-  | IDENTIFIER COL ty { { Member.name = $1; Member.ty = $3 } }
+  | IDENTIFIER COL ty { { Member.name = fst $1; Member.pos = snd $1; Member.ty = $3 } }
 
 memberList:
   | aMember                   { [$1] }
   | memberList COMMA aMember  { $3 :: $1 }
+
+unionCase:
+  | TYPENAME COL ty           { { UnionCase.name = fst $1; UnionCase.pos = snd $1; UnionCase.ty = $3 } }
+
+caseList:
+  | unionCase SC unionCase  { $3 :: [$1] }
+  | caseList SC unionCase   { $3 :: $1 }
+
+unionDecl:
+  | UNION TYPENAME LBRACE caseList RBRACE { DeclUnion ($2, $4 |> List.rev) }
+
+structDecl:
+  | STRUCT TYPENAME LBRACE memberList RBRACE { DeclStruct ($2, $4 |> List.rev) }
+
+enumCase:
+  | IDENTIFIER EQ INT       { (fst $1, snd $1, $3) }
+
+enumDecl:
+  | ENUM TYPENAME LBRACE enumCaseList RBRACE { DeclEnum ($2, $4 |> List.rev) }
+
+enumCaseList:
+  | enumCase SC enumCase    { $3 :: [$1] }
+  | enumCaseList SC enumCase  { $3 :: $1 }
+
+objectBody:
+  | LBRACE RBRACE           { [] }
+  | LBRACE memberList RBRACE { $2 |> List.rev }
+
+typenameList:
+  | TYPENAME      { [$1] }
+  | typenameList COMMA TYPENAME { $3 :: $1 }
+
+objectDecl:
+  | OBJECT TYPENAME COL typenameList objectBody  { DeclObject ($2, $4 |> List.rev, $5) }
+  | OBJECT TYPENAME objectBody  { DeclObject ($2, [], $3) }
