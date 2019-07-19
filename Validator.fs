@@ -26,7 +26,7 @@
 
 module Validator
 open Ast
-open Parser
+open System
 
 type TypeEntry
     = { fullName    : string * string
@@ -313,6 +313,26 @@ let rec buildModuleContext (m: Module) : Context * string list =  // TODO: pass 
         = errList :: modErrs :: []
         |> List.concat
     newContext, errors
+
+let openImports (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
+    decls
+    |> List.fold (fun (env: Map<string, Module>, s: Set<string>) d ->
+        match d with
+        | DeclImport (Read (x, p)) ->
+            try
+                if scope.Contains x
+                then failwith (sprintf "recusive module inclusion!!!: included from one of these %A" u)
+                let stream = IO.File.ReadAllText x
+                { Module.name   = x
+                  decls         =
+                    match runParserOnString (declList .>> (followedByL eof "';'") ) (u.Add x) x stream with
+                    | Success (r, _, p) -> r
+                    | Failure (err, _, pos) -> failwith (sprintf "@%A: %s" pos err) }
+                |> DeclImport
+            with e ->
+                failwith (sprintf "@%A: trying to import '%s': %s" p x e.Message)
+        | _ -> env, s
+    ) (env, Set.empty)
 
 let validate (m: Module) =
     // check duplicates
