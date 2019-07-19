@@ -315,24 +315,27 @@ let rec buildModuleContext (m: Module) : Context * string list =  // TODO: pass 
     newContext, errors
 
 let openImports (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
+
     decls
-    |> List.fold (fun (env: Map<string, Module>, s: Set<string>) d ->
+    |> List.fold (fun (decls: Decl list, env: Map<string, Module>, s: Set<string>) d ->
         match d with
         | DeclImport (Read (x, p)) ->
-            try
+            try (
                 if scope.Contains x
                 then failwith (sprintf "recusive module inclusion!!!: included from one of these %A" u)
                 let stream = IO.File.ReadAllText x
+                let s = s.Add x
                 { Module.name   = x
                   decls         =
                     match runParserOnString (declList .>> (followedByL eof "';'") ) (u.Add x) x stream with
                     | Success (r, _, p) -> r
                     | Failure (err, _, pos) -> failwith (sprintf "@%A: %s" pos err) }
-                |> DeclImport
+                |> Mod
+                |> DeclImport) :: decls, env, s
             with e ->
                 failwith (sprintf "@%A: trying to import '%s': %s" p x e.Message)
-        | _ -> env, s
-    ) (env, Set.empty)
+        | _ -> (d :: decls), env, s
+    ) ([], env, scope)
 
 let validate (m: Module) =
     // check duplicates
