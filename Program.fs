@@ -25,12 +25,9 @@
 //
 
 open System
-open FSharp.Text.Lexing
+open Validator
 
-let parse streamName schizo =
-    let lexbuf = LexBuffer<char>.FromString schizo
-    let res = Parser.start (Lexer.read streamName) lexbuf
-    res
+
 
 let (|>!) (a: 'A) (b: 'A -> 'B) = b a |> ignore; a
 

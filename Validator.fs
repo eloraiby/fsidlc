@@ -78,6 +78,11 @@ with
                             |> List.map (fun ((_, k), t) -> k, t)
                             |> Map.ofList }
 
+let private parseInternal streamName schizo =
+    let lexbuf = FSharp.Text.Lexing.LexBuffer<char>.FromString schizo
+    let res = Parser.start (Lexer.read streamName) lexbuf
+    res
+
 let rec checkDuplicateMembers modName (decl: Ast.Decl) =
     let checkInMemberList (modName, tyName) (ml: Member list) =
         ml
@@ -314,29 +319,6 @@ let rec buildModuleContext (m: Module) : Context * string list =  // TODO: pass 
         |> List.concat
     newContext, errors
 
-let openImports (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
-
-    decls
-    |> List.fold (fun (decls: Decl list, env: Map<string, Module>, s: Set<string>) d ->
-        match d with
-        | DeclImport (Read (x, p)) ->
-            try (
-                if scope.Contains x
-                then failwith (sprintf "recusive module inclusion!!!: included from one of these %A" u)
-                let stream = IO.File.ReadAllText x
-                let s = s.Add x
-                { Module.name   = x
-                  decls         =
-                    match runParserOnString (declList .>> (followedByL eof "';'") ) (u.Add x) x stream with
-                    | Success (r, _, p) -> r
-                    | Failure (err, _, pos) -> failwith (sprintf "@%A: %s" pos err) }
-                |> Mod
-                |> DeclImport) :: decls, env, s
-            with e ->
-                failwith (sprintf "@%A: trying to import '%s': %s" p x e.Message)
-        | _ -> (d :: decls), env, s
-    ) ([], env, scope)
-
 let validate (m: Module) =
     // check duplicates
     let dupMembers
@@ -358,5 +340,36 @@ let validate (m: Module) =
     dupErrors :: errors :: []
     |> List.concat
 
+let rec openImports (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
+    decls
+    |> List.fold (fun (decls: Decl list, env: Map<string, Module>, s: Set<string>) d ->
+        match d with
+        | DeclImport (Read (x, p)) ->
+            try (
+                if scope.Contains x
+                then failwith (sprintf "recusive module inclusion!!!: included from one of these %A" s)
+                let stream = IO.File.ReadAllText x
+                let s = s.Add x
+                let ds, e, s
+                    = parseInternal x stream
+                    |> openImports env scope
+                let m
+                    = { Module.name   = x
+                        decls         = ds }
+                let errs = validate m
+                match errs with
+                | [] -> (DeclImport (Mod m)) :: decls, e.Add(x, m), s
+                | _ ->
+                    printfn "%A" errs
+                    failwith "terminal erros while importing")
+            with e ->
+                failwith (sprintf "@%A: trying to import '%s': %s" p x e.Message)
+        | _ -> (d :: decls), env, s
+    ) ([], env, scope)
 
+let parse streamName stream =
+    let decls = parseInternal streamName stream
+    let ds, env, s = openImports Map.empty (Set.empty.Add streamName) decls
+    { Module.name   = streamName
+      decls         = ds }
 
