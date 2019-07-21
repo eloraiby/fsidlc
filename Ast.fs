@@ -42,7 +42,7 @@ type Ty
     | TyArray   of Ty * uint32
     | TyVector  of Ty
     | TyList    of Ty
-    | TyFnSig   of Ty list * Ty
+    | TyFnSig   of Ty * Ty
 
 type Member
     = { name    : string
@@ -91,7 +91,7 @@ and Decl
     | DeclImport    of Import
     | DeclUnion     of Union
     | DeclEnum      of Enum
-    | DeclFunc      of (string * Position) * Ty list * Ty
+    | DeclFunc      of (string * Position) * Ty
 
 and Module
     = { name    : string

@@ -26,23 +26,40 @@
 
 open System
 open Validator
+open Argu
 
-
+type Arguments =
+    | [<AltCommandLine("-i"); Unique>] Import_Directory      of path: string
+with
+    interface IArgParserTemplate with
+        member s.Usage =
+            match s with
+            | Import_Directory _    -> "specify an import directory"
 
 let (|>!) (a: 'A) (b: 'A -> 'B) = b a |> ignore; a
 
 [<EntryPoint>]
 let main argv =
 
-    let test =
-        """
-interface T {
-    field0: String,
-    fieldSomething: Int,
-    arrayField : [Float * 4],
-    vectorField : [Char]
-}
-        """
-    let result = parse "test" test
-    printfn "%A" result
-    0 // return an integer exit code
+    let argParser = ArgumentParser.Create<Arguments>();
+    let usage = argParser.PrintUsage()
+
+    if argv.Length = 0 || argv.Length > 2
+    then
+        printfn "%s" usage
+        1
+    else
+        let streamName = argv.[0]
+        match IO.File.Exists (streamName + ".fsidl") with
+        | true ->
+            try
+                let stream = IO.File.ReadAllText (streamName + ".fsidl")
+                let res = parse streamName stream
+                printfn "%A" res
+                0
+            with e ->
+                printfn "Error: %s" e.Message
+                3
+        | false ->
+            printfn "Module %s (file %s.fsidl) does not exist" streamName streamName
+            2

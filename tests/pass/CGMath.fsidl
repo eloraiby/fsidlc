@@ -1,0 +1,60 @@
+struct Vec2 {
+    x: F32,
+    y: F32
+}
+
+vec2Add         : (Vec2, Vec2) -> Vec2
+vec2Sub         : (Vec2, Vec2) -> Vec2
+vec2Mulf        : (Vec2, F32)  -> Vec2
+vec2Divf        : (Vec2, F32)  -> Vec2
+vec2Dot         : (Vec2, Vec2) -> F32
+vec2Cross       : (Vec2, Vec2) -> Vec2
+vec2Normalize   : (Vec2, Vec2) -> Vec2
+
+struct Vec3 {
+    x: F32,
+    y: F32,
+    z: F32
+}
+
+vec3Add         : (Vec3, Vec3) -> Vec3
+vec3Sub         : (Vec3, Vec3) -> Vec3
+vec3Mulf        : (Vec3, F32)  -> Vec3
+vec3Divf        : (Vec3, F32)  -> Vec3
+vec3Dot         : (Vec3, Vec3) -> F32
+vec3Cross       : (Vec3, Vec3) -> Vec3
+vec3Normalize   : (Vec3, Vec3) -> Vec3
+
+struct Vec4 {
+    x: F32,
+    y: F32,
+    z: F32,
+    w: F32
+}
+
+vec4Add         : (Vec4, Vec4) -> Vec4
+vec4Sub         : (Vec4, Vec4) -> Vec4
+vec4Mulf        : (Vec4, F32)  -> Vec4
+vec4Divf        : (Vec4, F32)  -> Vec4
+vec4Dot         : (Vec4, Vec4) -> F32
+vec4Cross       : (Vec4, Vec4) -> Vec4
+vec4Normalize   : (Vec4, Vec4) -> Vec4
+
+struct Quat {
+    x: F32,
+    y: F32,
+    z: F32,
+    w: F32
+}
+
+struct Mat2 {
+    m: [F32 * 4]
+}
+
+struct Mat3 {
+    m: [F32 * 9]
+}
+
+struct Mat4 {
+    m: [F32 * 16]
+}

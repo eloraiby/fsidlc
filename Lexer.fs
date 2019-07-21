@@ -38,7 +38,7 @@ let lexeme (lexbuf : LexBuffer<char>) = new System.String(lexbuf.Lexeme)
 let newline (lexbuf:LexBuffer<_>) = lexbuf.EndPos <- lexbuf.EndPos.NextLine
 let getPosition streamName (lexbuf: LexBuffer<char>) =
     { Position.streamName = streamName
-      line = lexbuf.StartPos.Line
+      line = lexbuf.StartPos.Line + 1
       column = lexbuf.StartPos.Column
       cursor = lexbuf.StartPos.AbsoluteOffset }
 
@@ -215,7 +215,7 @@ let trans : uint16[] array =
     (* State 83 *)
      [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 83us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 83us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     |] 
-let actions : uint16[] = [|65535us; 0us; 0us; 1us; 0us; 3us; 0us; 1us; 1us; 2us; 4us; 29us; 3us; 3us; 4us; 29us; 29us; 29us; 29us; 29us; 12us; 13us; 14us; 15us; 16us; 17us; 19us; 20us; 21us; 22us; 23us; 27us; 30us; 29us; 30us; 29us; 28us; 29us; 29us; 29us; 11us; 29us; 29us; 29us; 29us; 9us; 8us; 29us; 29us; 29us; 29us; 6us; 29us; 29us; 29us; 29us; 29us; 7us; 29us; 29us; 29us; 29us; 29us; 29us; 5us; 4us; 65535us; 3us; 3us; 18us; 3us; 3us; 65535us; 3us; 3us; 29us; 29us; 10us; 3us; 3us; 3us; 2us; 1us; 0us; |]
+let actions : uint16[] = [|65535us; 0us; 0us; 1us; 0us; 3us; 0us; 1us; 1us; 2us; 4us; 28us; 3us; 3us; 4us; 28us; 28us; 28us; 28us; 28us; 12us; 13us; 14us; 15us; 16us; 17us; 19us; 20us; 21us; 22us; 23us; 26us; 29us; 28us; 29us; 28us; 27us; 28us; 28us; 28us; 11us; 28us; 28us; 28us; 28us; 9us; 8us; 28us; 28us; 28us; 28us; 6us; 28us; 28us; 28us; 28us; 28us; 7us; 28us; 28us; 28us; 28us; 28us; 28us; 5us; 4us; 65535us; 3us; 3us; 18us; 3us; 3us; 65535us; 3us; 3us; 28us; 28us; 10us; 3us; 3us; 3us; 2us; 1us; 0us; |]
 let _fslex_tables = FSharp.Text.Lexing.UnicodeTables.Create(trans,actions)
 let rec _fslex_dummy () = _fslex_dummy() 
 // Rule read
@@ -348,47 +348,42 @@ and read streamName lexbuf =
           )
   | 25 -> ( 
 # 87 "Lexer.fsl"
-                                     ARROW 
+                                     MINUS 
 # 352 "Lexer.fs"
           )
   | 26 -> ( 
 # 88 "Lexer.fsl"
-                                     MINUS 
+                                     EOF 
 # 357 "Lexer.fs"
           )
   | 27 -> ( 
 # 89 "Lexer.fsl"
-                                     EOF 
+                                     readComment streamName lexbuf 
 # 362 "Lexer.fs"
           )
   | 28 -> ( 
 # 90 "Lexer.fsl"
-                                     readComment streamName lexbuf 
+                                     let pos = getPosition streamName lexbuf in IDENTIFIER (lexeme lexbuf, pos) 
 # 367 "Lexer.fs"
           )
   | 29 -> ( 
 # 91 "Lexer.fsl"
-                                     let pos = getPosition streamName lexbuf in IDENTIFIER (lexeme lexbuf, pos) 
-# 372 "Lexer.fs"
-          )
-  | 30 -> ( 
-# 92 "Lexer.fsl"
                          raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) 
-# 377 "Lexer.fs"
+# 372 "Lexer.fs"
           )
   | _ -> failwith "read"
 // Rule readComment
 and readComment streamName lexbuf =
   match _fslex_tables.Interpret(0,lexbuf) with
   | 0 -> ( 
-# 96 "Lexer.fsl"
+# 95 "Lexer.fsl"
                                newline lexbuf; read streamName lexbuf 
-# 386 "Lexer.fs"
+# 381 "Lexer.fs"
           )
   | 1 -> ( 
-# 97 "Lexer.fsl"
+# 96 "Lexer.fsl"
                          readComment streamName lexbuf 
-# 391 "Lexer.fs"
+# 386 "Lexer.fs"
           )
   | _ -> failwith "readComment"
 

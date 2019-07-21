@@ -37,7 +37,7 @@ let lexeme (lexbuf : LexBuffer<char>) = new System.String(lexbuf.Lexeme)
 let newline (lexbuf:LexBuffer<_>) = lexbuf.EndPos <- lexbuf.EndPos.NextLine
 let getPosition streamName (lexbuf: LexBuffer<char>) =
     { Position.streamName = streamName
-      line = lexbuf.StartPos.Line
+      line = lexbuf.StartPos.Line + 1
       column = lexbuf.StartPos.Column
       cursor = lexbuf.StartPos.AbsoluteOffset }
 
@@ -84,7 +84,6 @@ rule read streamName =
     | "*"           { MUL }
     | "="           { EQ }
     | "."           { DOT }
-    | "->"          { ARROW }
     | "-"           { MINUS }
     | eof           { EOF }
     | "//"          { readComment streamName lexbuf }

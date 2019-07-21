@@ -80,8 +80,16 @@ with
 
 let private parseInternal streamName schizo =
     let lexbuf = FSharp.Text.Lexing.LexBuffer<char>.FromString schizo
-    let res = Parser.start (Lexer.read streamName) lexbuf
-    res
+    try
+        let res = Parser.start (Lexer.read streamName) lexbuf
+        res
+    with e ->
+        let pos = lexbuf.StartPos
+        let line = pos.Line
+        let column = pos.Column
+        let lastToken = String(lexbuf.Lexeme)
+        printfn "%s(%d, %d): error parsing token %s" streamName line column lastToken
+        []
 
 let rec checkDuplicateMembers modName (decl: Ast.Decl) =
     let checkInMemberList (modName, tyName) (ml: Member list) =
@@ -183,17 +191,17 @@ let checkDuplicateFunctions (m: Module) : string list =
             | _ -> false)
         |> List.map(fun decl ->
             match decl with
-            | Decl.DeclFunc (f, a, r) -> f, a, r
+            | Decl.DeclFunc (f, a) -> f, a
             | _ -> failwith "impossible")
 
     // no overloads are supported!!!!
     let _, errList
         = funcs
-        |> List.fold(fun (fMap: Map<string, Position * Ty list * Ty>, errList: string list) f ->
-            let ((name, pos), args, ret) = f
+        |> List.fold(fun (fMap: Map<string, Position * Ty>, errList: string list) f ->
+            let ((name, pos), args) = f
             match fMap.TryFind name with
-            | Some (pos, _, _) -> fMap, (sprintf "in module %s, function %s was already defined @%A" m.name name pos) :: errList
-            | _ -> fMap.Add (name, (pos, args, ret)), errList) (Map.empty, [])
+            | Some (pos, _) -> fMap, (sprintf "in module %s, function %s was already defined @%A" m.name name pos) :: errList
+            | _ -> fMap.Add (name, (pos, args)), errList) (Map.empty, [])
     errList
 
 let rec validateType (modName: string) (ctx: Context) (ty: Ty) : string list =
@@ -221,11 +229,10 @@ let rec validateType (modName: string) (ctx: Context) (ty: Ty) : string list =
         tys
         |> List.map (fun ty -> ty |> extractTy |> validateType modName ctx)
         |> List.concat
-    | Ty.TyFnSig (args, ret) ->
+    | Ty.TyFnSig (arg, ret) ->
         let argRes
-            = args
-            |> List.map (validateType modName ctx)
-            |> List.concat
+            = arg
+            |> validateType modName ctx
         let retRes
             = ret
             |> validateType modName ctx
@@ -238,15 +245,11 @@ let validateModule (ctx: Context, m: Module) : string list =
     |> List.map(fun decl ->
         match decl with
         | Decl.DeclEnum e -> []
-        | Decl.DeclFunc ((name, p), args, ret) ->
-            let argRes
-                = args
-                |> List.map (validateType m.name ctx)
-                |> List.concat
-            let retRes
-                = ret
+        | Decl.DeclFunc ((name, p), t) ->
+            let tRes
+                = t
                 |> validateType m.name ctx
-            argRes :: retRes :: []
+            tRes :: []
             |> List.concat
         | Decl.DeclImport _ -> []
         | Decl.DeclInterface i ->

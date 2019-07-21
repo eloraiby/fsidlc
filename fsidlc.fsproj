@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Argu" Version="5.5.0" />
     <PackageReference Include="FsLexYacc" Version="9.0.2" />
   </ItemGroup>
 

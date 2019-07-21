@@ -3,7 +3,6 @@ module Parser
 type token = 
   | EOF
   | MINUS
-  | ARROW
   | DOT
   | EQ
   | MUL
@@ -31,7 +30,6 @@ type token =
 type tokenId = 
     | TOKEN_EOF
     | TOKEN_MINUS
-    | TOKEN_ARROW
     | TOKEN_DOT
     | TOKEN_EQ
     | TOKEN_MUL
@@ -67,6 +65,8 @@ type nonTerminalId =
     | NONTERM_importDecl
     | NONTERM_ifaceDecl
     | NONTERM_tuple
+    | NONTERM_typeName
+    | NONTERM_fnTy
     | NONTERM_ty
     | NONTERM_tupleList
     | NONTERM_funcDecl
@@ -81,7 +81,6 @@ type nonTerminalId =
     | NONTERM_enumCaseList
     | NONTERM_objectBody
     | NONTERM_typenameList
-    | NONTERM_typeName
     | NONTERM_objectDecl
 /// This function maps tokens to integer indexes
 val tagOfToken: token -> int
