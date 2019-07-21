@@ -52,8 +52,9 @@ struct Quat {
 
 struct Test {
     // TODO: This should not pass (Mat4 is declared after and is not a refernce)
-    m: Mat4
+    m: Test
 }
+
 struct Mat2 {
     m: [F32 * 4]
 }

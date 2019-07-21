@@ -36,7 +36,20 @@ type TypeName
     | Qualified of string * string * Position
 
 type Ty
-    = TyName    of string * Position
+    = TyUnit
+    | TyBool
+    | TyChar
+    | TyU8
+    | TyU16
+    | TyU32
+    | TyU64
+    | TyS8
+    | TyS16
+    | TyS32
+    | TyS64
+    | TyF32
+    | TyF64
+    | TyName    of string * Position
     | TyQName   of string * string * Position
     | TyTuple   of Ty list
     | TyArray   of Ty * uint32
@@ -92,6 +105,27 @@ and Decl
     | DeclUnion     of Union
     | DeclEnum      of Enum
     | DeclFunc      of (string * Position) * Ty
+with
+    member x.tyName =
+        match x with
+        | DeclInterface i -> i.name
+        | DeclObj       o -> o.name
+        | DeclStruct    s -> s.name
+        | DeclImport    _ -> failwith "Imports have no type name"
+        | DeclUnion     u -> u.name
+        | DeclEnum      e -> e.name
+        | DeclFunc      _ -> failwith "Functions have no type name"
+
+    member x.name =
+        match x with
+        | DeclInterface i -> i.name
+        | DeclObj       o -> o.name
+        | DeclStruct    s -> s.name
+        | DeclImport    _ -> failwith "Imports have no declaration name"
+        | DeclUnion     u -> u.name
+        | DeclEnum      e -> e.name
+        | DeclFunc      ((n, _), _) -> n
+
 
 and Module
     = { name    : string

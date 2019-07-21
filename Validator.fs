@@ -24,7 +24,7 @@
 // SOFTWARE.
 //
 
-// TODO: check recursive types
+// TODO: object should be able to refer to themselves
 // TODO: add reference types
 // TODO: for data types, only allow usage of type in a preceeding declaration if the type is a reference type
 
@@ -34,20 +34,18 @@ open System
 
 type TypeEntry
     = { fullName    : string * string
-        pos         : Position }
+        pos         : Position
+        referredTypes : Set<string * string> }
 with
     member x.orig   = x.fullName |> fst
 
 type Context
-    = { qTypeMap    : Map<string * string, TypeEntry>
-        typeMap     : Map<string, TypeEntry> }
+    = { qTypeMap    : Map<string * string, TypeEntry> }
 with
-    member x.add (modName: string, tyName: string, pos: Position) =
+    member x.add (modName: string, tyName: string, pos: Position, referred: Set<string * string>) =
         { x with
-            qTypeMap    = x.qTypeMap.Add((modName, tyName), { fullName = modName, tyName; pos = pos})
-            typeMap     = x.typeMap.Add(tyName, { fullName = modName, tyName; pos = pos}) }
+            qTypeMap    = x.qTypeMap.Add((modName, tyName), { fullName = modName, tyName; pos = pos; referredTypes = referred}) }
 
-    member x.tryFind (ty: string) = x.typeMap.TryFind ty
     member x.tryFindQ (ty: string * string) = x.qTypeMap.TryFind ty
 
     member x.import (other: Context) =
@@ -55,32 +53,10 @@ with
             qTypeMap =
                 other.qTypeMap
                 |> Map.fold(fun (state: Map<_, _>) k v ->
-                    state.Add (k, v)) x.qTypeMap
-            typeMap =
-                other.typeMap
-                |> Map.fold(fun (state: Map<_, _>) k v ->
-                    state.Add (k, v)) x.typeMap }
+                    state.Add (k, v)) x.qTypeMap }
 
     static member create() =
-        let natives
-            = [ "Native", "U8"
-                "Native", "U16"
-                "Native", "U32"
-                "Native", "U64"
-                "Native", "I8"
-                "Native", "I16"
-                "Native", "I32"
-                "Native", "I64"
-                "Native", "F32"
-                "Native", "F64" ]
-              |> List.map(fun (x, y) -> (x, y), { fullName = x, y; pos = { Position.streamName = x; line = 0; column = 0; cursor = 0 } } )
-              |> Map.ofList
-
-        { Context.qTypeMap = natives
-          typeMap           = natives
-                            |> Map.toList
-                            |> List.map (fun ((_, k), t) -> k, t)
-                            |> Map.ofList }
+        { Context.qTypeMap = Map.empty }
 
 let private parseInternal streamName schizo =
     let lexbuf = FSharp.Text.Lexing.LexBuffer<char>.FromString schizo
@@ -208,27 +184,46 @@ let checkDuplicateFunctions (pathEnv: Map<string, string>) (m: Module) : string 
             | _ -> fMap.Add (name, (pos, args)), errList) (Map.empty, [])
     errList
 
-let rec validateType (pathEnv: Map<string, string>) (modName: string) (ctx: Context) (ty: Ty) : string list =
-    let rec extractTy (ty: Ty) =
-        match ty with
-        | TyArray (x, _)
-        | TyVector x
-        | TyList x ->
-            match x with
-            | TyArray _
-            | TyList _ -> extractTy x
-            | _ -> x
-        | _ -> ty
+let rec extractTy (ty: Ty) =
+    match ty with
+    | TyArray (x, _)
+    | TyVector x
+    | TyList x ->
+        match x with
+        | TyArray _
+        | TyList _ -> extractTy x
+        | _ -> x
+    | _ -> ty
 
+let rec validateType (pathEnv: Map<string, string>) (modName: string) (ctx: Context) (ty: Ty) : string list =
     match extractTy ty with
-    | Ty.TyName (x, p) ->
-        match ctx.tryFind x with
-        | Some x -> []
-        | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] x p) :: []
-    | Ty.TyQName (x, y, p) ->
-        match ctx.tryFindQ (x, y) with
-        | Some x -> []
-        | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] x p) :: []
+    | TyUnit
+    | TyBool
+    | TyChar
+    | TyU8
+    | TyU16
+    | TyU32
+    | TyU64
+    | TyS8
+    | TyS16
+    | TyS32
+    | TyS64
+    | TyF32
+    | TyF64 -> []
+    | Ty.TyName (n, p) ->
+        match ctx.tryFindQ (modName, n) with
+        | Some x ->
+            match x.referredTypes.Contains (modName, n) with
+            | true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
+            | false -> []
+        | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] n p) :: []
+    | Ty.TyQName (m, n, p) ->
+        match ctx.tryFindQ (m, n) with
+        | Some x ->
+            match x.referredTypes.Contains (m, n) with
+            | true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
+            | false -> []
+        | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] n p) :: []
     | Ty.TyTuple tys ->
         tys
         |> List.map (fun ty -> ty |> extractTy |> validateType pathEnv modName ctx)
@@ -243,6 +238,74 @@ let rec validateType (pathEnv: Map<string, string>) (modName: string) (ctx: Cont
         argRes :: retRes :: []
         |> List.concat
     | _ -> failwith "impossible type validation condition"
+
+let rec extractTypeList (modName: string) (ty: Ty) =
+    match extractTy ty with
+    | TyUnit
+    | TyBool
+    | TyChar
+    | TyU8
+    | TyU16
+    | TyU32
+    | TyU64
+    | TyS8
+    | TyS16
+    | TyS32
+    | TyS64
+    | TyF32
+    | TyF64 -> []
+    | Ty.TyName (x, p) -> [modName, x]
+    | Ty.TyQName (x, y, p) -> [x, y]
+    | Ty.TyTuple tys ->
+        tys
+        |> List.map (extractTypeList modName)
+        |> List.concat
+    | Ty.TyFnSig (arg, ret) ->
+        let argRes
+            = arg
+            |> extractTypeList modName
+        let retRes
+            = ret
+            |> extractTypeList modName
+        argRes :: retRes :: []
+        |> List.concat
+    | _ -> failwith "impossible type extraction condition"
+
+let referredTypes (modName: string) (decl: Decl) : Set<string * string> =
+    match decl with
+    | DeclInterface i -> Set.empty
+    | DeclObj       o ->
+        let ms
+            = o.members
+            |> List.map(fun m -> extractTypeList modName m.ty)
+            |> List.concat
+        let ifs
+            = o.ifaces
+            |> List.map (fun t ->
+                match t with
+                | Simple (s, _) -> modName, s
+                | Qualified (m, s, _) -> m, s)
+        ms :: ifs :: []
+        |> List.concat
+        |> Set.ofList
+
+    | DeclStruct    s ->
+        s.members
+        |> List.map(fun m -> extractTypeList modName m.ty)
+        |> List.concat
+        |> Set.ofList
+    | DeclImport    _ -> failwith "imports cannot refer types"
+
+    | DeclUnion     u ->
+        u.cases
+        |> List.map(fun c -> extractTypeList modName c.ty)
+        |> List.concat
+        |> Set.ofList
+
+    | DeclEnum      _ -> Set.empty
+    | DeclFunc      (_, f) ->
+        extractTypeList modName f
+        |> Set.ofList
 
 let validateModule (pathEnv: Map<string, string>) (ctx: Context, m: Module) : string list =
     m.decls
@@ -285,7 +348,7 @@ let validateModule (pathEnv: Map<string, string>) (ctx: Context, m: Module) : st
             |> List.concat)
     |> List.concat
 
-let rec buildModuleContext (pathEnv: Map<string, string>) (m: Module) : Context * string list =  // TODO: pass type validation
+let rec buildModuleContext (pathEnv: Map<string, string>) (m: Module) : Context * string list =
     // 1. build the nested context (imported modules)
     let nestedCtx, errList =
         m.decls
@@ -315,7 +378,7 @@ let rec buildModuleContext (pathEnv: Map<string, string>) (m: Module) : Context 
             | Decl.DeclInterface { name = n; pos = p }
             | Decl.DeclObj { name = n; pos = p }
             | Decl.DeclStruct { name = n; pos = p }
-            | Decl.DeclUnion { name = n; pos = p } -> ctx.add(m.name, n, p)
+            | Decl.DeclUnion { name = n; pos = p } -> ctx.add(m.name, n, p, referredTypes m.name decl)
             | _ -> ctx) nestedCtx
 
     // 3. validate the current module types/declaration
@@ -337,7 +400,7 @@ let validate (pathEnv: Map<string, string>) (m: Module) =
 
     let dupFuncs = checkDuplicateFunctions pathEnv m
 
-    //
+    // sum them
     let dupErrors
         = dupFuncs :: dupTypes :: dupMembers :: []
         |> List.concat

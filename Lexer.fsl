@@ -63,6 +63,19 @@ rule read streamName =
     | newline       { newline lexbuf; read streamName lexbuf }
     | int           { INT (int (lexeme lexbuf)) }
     | float         { FLOAT (float (lexeme lexbuf)) }
+    | "Unit"        { UNIT }
+    | "Bool"        { BOOL }
+    | "Char"        { CHAR }
+    | "U8"          { U8 }
+    | "U16"         { U16 }
+    | "U32"         { U32 }
+    | "U64"         { U64 }
+    | "S8"          { S8 }
+    | "S16"         { S16 }
+    | "S32"         { S32 }
+    | "S64"         { S64 }
+    | "F32"         { F32 }
+    | "F64"         { F64 }
     | typeName      { let pos = getPosition streamName lexbuf in TYPENAME (lexeme lexbuf, pos) }
     | "interface"   { INTERFACE }
     | "object"      { OBJECT }

@@ -23,6 +23,19 @@ type token =
   | IMPORT
   | OBJECT
   | INTERFACE
+  | F64
+  | F32
+  | S64
+  | S32
+  | S16
+  | S8
+  | U64
+  | U32
+  | U16
+  | U8
+  | CHAR
+  | BOOL
+  | UNIT
   | IDENTIFIER of (string * Position)
   | TYPENAME of (string * Position)
   | FLOAT of (float)
@@ -50,6 +63,19 @@ type tokenId =
     | TOKEN_IMPORT
     | TOKEN_OBJECT
     | TOKEN_INTERFACE
+    | TOKEN_F64
+    | TOKEN_F32
+    | TOKEN_S64
+    | TOKEN_S32
+    | TOKEN_S16
+    | TOKEN_S8
+    | TOKEN_U64
+    | TOKEN_U32
+    | TOKEN_U16
+    | TOKEN_U8
+    | TOKEN_CHAR
+    | TOKEN_BOOL
+    | TOKEN_UNIT
     | TOKEN_IDENTIFIER
     | TOKEN_TYPENAME
     | TOKEN_FLOAT

@@ -37,6 +37,21 @@ let (|>|) a b = b a; a
 %token <float> FLOAT
 %token <string * Position> TYPENAME
 %token <string * Position> IDENTIFIER
+
+%token UNIT
+%token BOOL
+%token CHAR
+%token U8
+%token U16
+%token U32
+%token U64
+%token S8
+%token S16
+%token S32
+%token S64
+%token F32
+%token F64
+
 %token INTERFACE
 %token OBJECT
 %token IMPORT
@@ -103,6 +118,19 @@ fnTy:
   | fnTy RARROW ty        { TyFnSig($1, $3) }
 
 ty:
+  | UNIT                  { TyUnit }
+  | BOOL                  { TyBool }
+  | CHAR                  { TyChar }
+  | U8                    { TyU8 }
+  | U16                   { TyU16 }
+  | U32                   { TyU32 }
+  | U64                   { TyU64 }
+  | S8                    { TyS8 }
+  | S16                   { TyS16 }
+  | S32                   { TyS32 }
+  | S64                   { TyS64 }
+  | F32                   { TyF32 }
+  | F64                   { TyF64 }
   | TYPENAME              { TyName $1 }
   | TYPENAME DOT TYPENAME { TyQName (fst $1, fst $3, snd $1) }
   | LPAREN fnTy LPAREN    { $2 }
