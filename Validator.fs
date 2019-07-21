@@ -32,8 +32,13 @@ module Validator
 open Ast
 open System
 
+type RefTy =
+    | ValueType
+    | RefType
+
 type TypeEntry
     = { fullName    : string * string
+        refType     : RefTy
         pos         : Position
         referredTypes : Set<string * string> }
 with
@@ -42,9 +47,9 @@ with
 type Context
     = { qTypeMap    : Map<string * string, TypeEntry> }
 with
-    member x.add (modName: string, tyName: string, pos: Position, referred: Set<string * string>) =
+    member x.add (modName: string, tyName: string, refTy: RefTy, pos: Position, referred: Set<string * string>) =
         { x with
-            qTypeMap    = x.qTypeMap.Add((modName, tyName), { fullName = modName, tyName; pos = pos; referredTypes = referred}) }
+            qTypeMap    = x.qTypeMap.Add((modName, tyName), { fullName = modName, tyName; refType = refTy; pos = pos; referredTypes = referred}) }
 
     member x.tryFindQ (ty: string * string) = x.qTypeMap.TryFind ty
 
@@ -213,16 +218,16 @@ let rec validateType (pathEnv: Map<string, string>) (modName: string) (ctx: Cont
     | Ty.TyName (n, p) ->
         match ctx.tryFindQ (modName, n) with
         | Some x ->
-            match x.referredTypes.Contains (modName, n) with
-            | true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
-            | false -> []
+            match x.refType, x.referredTypes.Contains (modName, n) with
+            | ValueType, true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
+            | _ -> []
         | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] n p) :: []
     | Ty.TyQName (m, n, p) ->
         match ctx.tryFindQ (m, n) with
         | Some x ->
-            match x.referredTypes.Contains (m, n) with
-            | true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
-            | false -> []
+            match x.refType, x.referredTypes.Contains (m, n) with
+            | ValueType, true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
+            | _ -> []
         | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] n p) :: []
     | Ty.TyTuple tys ->
         tys
@@ -273,7 +278,12 @@ let rec extractTypeList (modName: string) (ty: Ty) =
 
 let referredTypes (modName: string) (decl: Decl) : Set<string * string> =
     match decl with
-    | DeclInterface i -> Set.empty
+    | DeclInterface i ->
+        i.members
+        |> List.map(fun m -> extractTypeList modName m.ty)
+        |> List.concat
+        |> Set.ofList
+
     | DeclObj       o ->
         let ms
             = o.members
@@ -375,10 +385,10 @@ let rec buildModuleContext (pathEnv: Map<string, string>) (m: Module) : Context 
         |> List.fold (fun (ctx: Context) decl ->
             match decl with
             | Decl.DeclEnum { name = n; pos = p }
-            | Decl.DeclInterface { name = n; pos = p }
-            | Decl.DeclObj { name = n; pos = p }
             | Decl.DeclStruct { name = n; pos = p }
-            | Decl.DeclUnion { name = n; pos = p } -> ctx.add(m.name, n, p, referredTypes m.name decl)
+            | Decl.DeclUnion { name = n; pos = p } -> ctx.add(m.name, n, ValueType, p, referredTypes m.name decl)
+            | Decl.DeclInterface { name = n; pos = p }
+            | Decl.DeclObj { name = n; pos = p } -> ctx.add(m.name, n, RefType, p, referredTypes m.name decl)
             | _ -> ctx) nestedCtx
 
     // 3. validate the current module types/declaration
