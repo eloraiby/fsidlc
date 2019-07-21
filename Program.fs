@@ -44,7 +44,7 @@ let isUpper a =
 let isValid a =
     (a >= 'A' && a <= 'Z') || (a >= 'a' && a <= 'z') || (a >= '0' && a <= '9')
 
-let chechModuleName (name: string) =
+let checkModuleName (name: string) =
     if name.[0] |> isUpper then
         (name
         |> Seq.filter isValid
@@ -64,6 +64,7 @@ let main argv =
         1
     else
         let streamName = argv.[0]
+
         let options = if argv.Length > 1 then argv.[1..] else [||]
         printfn "Options: %A" options
         try
@@ -71,6 +72,10 @@ let main argv =
             let folders =
                 results.GetResult <@Import_Directory@>
             printfn "%A" folders
+
+            if not (checkModuleName streamName)
+            then failwith (sprintf "Invalid module name: %s (not respecting module name rules: Start with uppercase and contains letters and digits only)" streamName)
+
 
             // get all modules from files and make mapping
             folders
