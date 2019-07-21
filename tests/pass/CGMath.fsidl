@@ -3,6 +3,7 @@ struct Vec2 {
     y: F32
 }
 
+vec2Zero        : Vec2
 vec2Add         : (Vec2, Vec2) -> Vec2
 vec2Sub         : (Vec2, Vec2) -> Vec2
 vec2Mulf        : (Vec2, F32)  -> Vec2
@@ -17,6 +18,7 @@ struct Vec3 {
     z: F32
 }
 
+vec3Zero        : Vec3
 vec3Add         : (Vec3, Vec3) -> Vec3
 vec3Sub         : (Vec3, Vec3) -> Vec3
 vec3Mulf        : (Vec3, F32)  -> Vec3
@@ -32,6 +34,7 @@ struct Vec4 {
     w: F32
 }
 
+vec4Zero        : Vec4
 vec4Add         : (Vec4, Vec4) -> Vec4
 vec4Sub         : (Vec4, Vec4) -> Vec4
 vec4Mulf        : (Vec4, F32)  -> Vec4

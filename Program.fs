@@ -29,7 +29,7 @@ open Validator
 open Argu
 
 type Arguments =
-    | [<AltCommandLine("-i"); Unique>] Import_Directory      of path: string
+    | [<AltCommandLine("-i"); ExactlyOnce>] Import_Directory      of paths: string list
 with
     interface IArgParserTemplate with
         member s.Usage =
@@ -38,24 +38,62 @@ with
 
 let (|>!) (a: 'A) (b: 'A -> 'B) = b a |> ignore; a
 
+let isUpper a =
+    a >= 'A' && a <= 'Z'
+
+let isValid a =
+    (a >= 'A' && a <= 'Z') || (a >= 'a' && a <= 'z') || (a >= '0' && a <= '9')
+
+let chechModuleName (name: string) =
+    if name.[0] |> isUpper then
+        (name
+        |> Seq.filter isValid
+        |> Seq.length)
+         = name.Length
+    else false
+
 [<EntryPoint>]
 let main argv =
 
     let argParser = ArgumentParser.Create<Arguments>();
     let usage = argParser.PrintUsage()
 
-    if argv.Length = 0 || argv.Length > 2
+    if argv.Length = 0
     then
         printfn "%s" usage
         1
     else
         let streamName = argv.[0]
+        let options = if argv.Length > 1 then argv.[1..] else [||]
+        printfn "Options: %A" options
+        try
+            let results = argParser.Parse options
+            let folders =
+                results.GetResult <@Import_Directory@>
+            printfn "%A" folders
+
+            // get all modules from files and make mapping
+            folders
+            |> List.map (fun f -> IO.Directory.GetFiles f |> Array.toList)
+            |> List.concat
+            |> List.filter (fun fname -> IO.Path.HasExtension ".fsidl")
+            |> List.map (fun fname ->
+                (IO.Path.GetFileNameWithoutExtension fname), fname)
+            |> printfn "-> %A"
+
+        with e ->
+            printfn "%s" e.Message
+
+
+
+//        let fileMap =
+
         match IO.File.Exists (streamName + ".fsidl") with
         | true ->
             try
                 let stream = IO.File.ReadAllText (streamName + ".fsidl")
                 let res = parse streamName stream
-                printfn "%A" res
+                //printfn "%A" res
                 0
             with e ->
                 printfn "Error: %s" e.Message
