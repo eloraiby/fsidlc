@@ -70,7 +70,7 @@ start: aModule { $1 }
 
 aModule:
   | EOF { [] }
-  | declList EOF { $1 |> List.rev }
+  | declList EOF { $1 }
 
 declList:
   | decl          { [$1] }

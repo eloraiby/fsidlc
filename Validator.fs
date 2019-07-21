@@ -24,6 +24,10 @@
 // SOFTWARE.
 //
 
+// TODO: check recursive types
+// TODO: add reference types
+// TODO: for data types, only allow usage of type in a preceeding declaration if the type is a reference type
+
 module Validator
 open Ast
 open System
@@ -91,13 +95,13 @@ let private parseInternal streamName schizo =
         printfn "%s(%d, %d): error parsing token %s" streamName line column lastToken
         []
 
-let rec checkDuplicateMembers modName (decl: Ast.Decl) =
+let rec checkDuplicateMembers (pathEnv: Map<string, string>) modName (decl: Ast.Decl) =
     let checkInMemberList (modName, tyName) (ml: Member list) =
         ml
         |> List.fold(fun (id2Member: Map<string, Member>, errList: string list) m ->
             match id2Member.TryFind m.name with
             | Some s ->
-                let err = sprintf "in module %s, @%A: in type %s, %s was defined before @%A" modName m.pos tyName m.name s.pos
+                let err = sprintf "in module %s, @%A: in type %s, %s was defined before @%A" pathEnv.[modName] m.pos tyName m.name s.pos
                 id2Member, err :: errList
             | None -> id2Member.Add(m.name, m), errList) (Map.empty, [])
         |> snd
@@ -110,7 +114,7 @@ let rec checkDuplicateMembers modName (decl: Ast.Decl) =
             let p = uc.pos
             match id2Member.TryFind name with
             | Some (_, _, sPos) ->
-                let err = sprintf "in module %s, @%A: in type %s, %s was defined before @%A" modName p tyName name sPos
+                let err = sprintf "in module %s, @%A: in type %s, %s was defined before @%A" pathEnv.[modName] p tyName name sPos
                 id2Member, err :: errList
             | None -> id2Member.Add(name, (name, t, p)), errList) (Map.empty, [])
         |> snd
@@ -120,7 +124,7 @@ let rec checkDuplicateMembers modName (decl: Ast.Decl) =
         |> List.fold(fun (id2Member: Map<string, string * Position * int64>, errList: string list) (name, t, p) ->
             match id2Member.TryFind name with
             | Some (_, _, sPos) ->
-                let err = sprintf "in module %s, @%A: in type %s, %s was defined before @%A" modName p tyName name sPos
+                let err = sprintf "in module %s, @%A: in type %s, %s was defined before @%A" pathEnv.[modName] p tyName name sPos
                 id2Member, err :: errList
             | None -> id2Member.Add(name, (name, t, p)), errList) (Map.empty, [])
         |> snd
@@ -133,14 +137,14 @@ let rec checkDuplicateMembers modName (decl: Ast.Decl) =
     | Decl.DeclEnum     { Enum.name = name; cases = cases}          -> checkInEnumCaseList (modName, name) cases
     | Decl.DeclImport   (Mod m) ->
         m.decls
-        |> List.map (checkDuplicateMembers modName)
+        |> List.map (checkDuplicateMembers pathEnv modName)
         |> List.concat
     | Decl.DeclImport   (Read (m, p)) ->
         let err = sprintf "in module %s, @%A: module %s is not read!" modName p m
         [err]
     | Decl.DeclFunc     _ -> []
 
-let rec checkDuplicateTypes (m: Module) : string list =
+let rec checkDuplicateTypes (pathEnv: Map<string, string>) (m: Module) : string list =
     // direct duplicate types errors
     let directErr
         = m.decls
@@ -159,7 +163,7 @@ let rec checkDuplicateTypes (m: Module) : string list =
                 | Decl.DeclUnion u      -> u.name, u.pos
                 | _                     -> failwith "impossible case"
             match typeMap.TryFind name with
-            | Some p   -> typeMap, (sprintf "in module %s, type %s was already defined @%A" m.name name p) :: errList
+            | Some p   -> typeMap, (sprintf "in module %s, type %s was already defined @%A" pathEnv.[m.name] name p) :: errList
             | _        -> (typeMap.Add(name, pos)), errList) (Map.empty, [])
         |> snd
 
@@ -168,9 +172,9 @@ let rec checkDuplicateTypes (m: Module) : string list =
         = m.decls
         |> List.map(fun decl ->
             match decl with
-            | Decl.DeclImport (Mod m) -> checkDuplicateTypes m
+            | Decl.DeclImport (Mod m) -> checkDuplicateTypes pathEnv m
             | Decl.DeclImport (Read (f, p)) ->
-                let err = sprintf "in module %s, @%A: module %s is not read!" m.name p f
+                let err = sprintf "in module %s, @%A: module %s is not read!" pathEnv.[m.name] p f
                 [err]
             | _ -> [])
         |> List.filter(fun l ->
@@ -182,7 +186,7 @@ let rec checkDuplicateTypes (m: Module) : string list =
     directErr :: nestedErrors :: []
     |> List.concat
 
-let checkDuplicateFunctions (m: Module) : string list =
+let checkDuplicateFunctions (pathEnv: Map<string, string>) (m: Module) : string list =
     let funcs
         = m.decls
         |> List.filter(fun decl ->
@@ -200,11 +204,11 @@ let checkDuplicateFunctions (m: Module) : string list =
         |> List.fold(fun (fMap: Map<string, Position * Ty>, errList: string list) f ->
             let ((name, pos), args) = f
             match fMap.TryFind name with
-            | Some (pos, _) -> fMap, (sprintf "in module %s, function %s was already defined @%A" m.name name pos) :: errList
+            | Some (pos, _) -> fMap, (sprintf "in module %s, function %s was already defined @%A" pathEnv.[m.name] name pos) :: errList
             | _ -> fMap.Add (name, (pos, args)), errList) (Map.empty, [])
     errList
 
-let rec validateType (modName: string) (ctx: Context) (ty: Ty) : string list =
+let rec validateType (pathEnv: Map<string, string>) (modName: string) (ctx: Context) (ty: Ty) : string list =
     let rec extractTy (ty: Ty) =
         match ty with
         | TyArray (x, _)
@@ -220,27 +224,27 @@ let rec validateType (modName: string) (ctx: Context) (ty: Ty) : string list =
     | Ty.TyName (x, p) ->
         match ctx.tryFind x with
         | Some x -> []
-        | None   -> (sprintf "in module %s, undeclared type %s @%A" modName x p) :: []
+        | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] x p) :: []
     | Ty.TyQName (x, y, p) ->
         match ctx.tryFindQ (x, y) with
         | Some x -> []
-        | None   -> (sprintf "in module %s, undeclared type %s @%A" modName x p) :: []
+        | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] x p) :: []
     | Ty.TyTuple tys ->
         tys
-        |> List.map (fun ty -> ty |> extractTy |> validateType modName ctx)
+        |> List.map (fun ty -> ty |> extractTy |> validateType pathEnv modName ctx)
         |> List.concat
     | Ty.TyFnSig (arg, ret) ->
         let argRes
             = arg
-            |> validateType modName ctx
+            |> validateType pathEnv modName ctx
         let retRes
             = ret
-            |> validateType modName ctx
+            |> validateType pathEnv modName ctx
         argRes :: retRes :: []
         |> List.concat
     | _ -> failwith "impossible type validation condition"
 
-let validateModule (ctx: Context, m: Module) : string list =
+let validateModule (pathEnv: Map<string, string>) (ctx: Context, m: Module) : string list =
     m.decls
     |> List.map(fun decl ->
         match decl with
@@ -248,13 +252,13 @@ let validateModule (ctx: Context, m: Module) : string list =
         | Decl.DeclFunc ((name, p), t) ->
             let tRes
                 = t
-                |> validateType m.name ctx
+                |> validateType pathEnv m.name ctx
             tRes :: []
             |> List.concat
         | Decl.DeclImport _ -> []
         | Decl.DeclInterface i ->
             i.members
-            |> List.map (fun me -> validateType m.name ctx me.ty)
+            |> List.map (fun me -> validateType pathEnv m.name ctx me.ty)
             |> List.concat
         | Decl.DeclObj o ->
             let oIfaceList
@@ -263,25 +267,25 @@ let validateModule (ctx: Context, m: Module) : string list =
                     match t with
                     | TypeName.Qualified (n0, n1, p) -> Ty.TyQName (n0, n1, p)
                     | TypeName.Simple (n, p) -> Ty.TyName (n, p))
-                |> List.map(validateType m.name ctx)
+                |> List.map(validateType pathEnv m.name ctx)
                 |> List.concat
             let ms
                 = o.members
-                |> List.map (fun me -> validateType m.name ctx me.ty)
+                |> List.map (fun me -> validateType pathEnv m.name ctx me.ty)
                 |> List.concat
             oIfaceList :: ms :: []
             |> List.concat
         | Decl.DeclStruct s ->
             s.members
-            |> List.map (fun me -> validateType m.name ctx me.ty)
+            |> List.map (fun me -> validateType pathEnv m.name ctx me.ty)
             |> List.concat
         | DeclUnion u ->
             u.cases
-            |> List.map(fun uc -> validateType m.name ctx uc.ty)
+            |> List.map(fun uc -> validateType pathEnv m.name ctx uc.ty)
             |> List.concat)
     |> List.concat
 
-let rec buildModuleContext (m: Module) : Context * string list =  // TODO: pass type validation
+let rec buildModuleContext (pathEnv: Map<string, string>) (m: Module) : Context * string list =  // TODO: pass type validation
     // 1. build the nested context (imported modules)
     let nestedCtx, errList =
         m.decls
@@ -291,9 +295,9 @@ let rec buildModuleContext (m: Module) : Context * string list =  // TODO: pass 
             | _ -> false)
         |> List.map(fun x ->
             match x with
-            | Decl.DeclImport (Mod m) -> buildModuleContext m
+            | Decl.DeclImport (Mod m) -> buildModuleContext pathEnv m
             | Decl.DeclImport (Read (f, p)) ->
-                let err = sprintf "in module %s, @%A: module %s is not read!" m.name p f
+                let err = sprintf "in module %s, @%A: module %s is not read!" pathEnv.[m.name] p f
                 failwith err
             | _ -> failwith "getModuleContext: impossible case")
         |> List.fold(fun (state: Context, errList: string list) (ctx, prevList) ->
@@ -315,35 +319,35 @@ let rec buildModuleContext (m: Module) : Context * string list =  // TODO: pass 
             | _ -> ctx) nestedCtx
 
     // 3. validate the current module types/declaration
-    let modErrs = validateModule (newContext, m)
+    let modErrs = validateModule pathEnv (newContext, m)
 
     let errors
         = errList :: modErrs :: []
         |> List.concat
     newContext, errors
 
-let validate (m: Module) =
+let validate (pathEnv: Map<string, string>) (m: Module) =
     // check duplicates
     let dupMembers
         = m.decls
-        |> List.map (checkDuplicateMembers m.name)
+        |> List.map (checkDuplicateMembers pathEnv m.name)
         |> List.concat
 
-    let dupTypes = checkDuplicateTypes m
+    let dupTypes = checkDuplicateTypes pathEnv m
 
-    let dupFuncs = checkDuplicateFunctions m
+    let dupFuncs = checkDuplicateFunctions pathEnv m
 
     //
     let dupErrors
         = dupFuncs :: dupTypes :: dupMembers :: []
         |> List.concat
 
-    let ctx, errors = buildModuleContext m
-    printfn "final: %A" ctx
+    let ctx, errors = buildModuleContext pathEnv m
+    //printfn "final: %A" ctx
     dupErrors :: errors :: []
     |> List.concat
 
-let rec openImports (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
+let rec openImports (fileEnv: Map<string, string>) (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
     decls
     |> List.fold (fun (decls: Decl list, env: Map<string, Module>, s: Set<string>) d ->
         match d with
@@ -351,15 +355,15 @@ let rec openImports (env: Map<string, Module>) (scope: Set<string>) (decls: Decl
             try (
                 if scope.Contains x
                 then failwith (sprintf "recusive module inclusion!!!: included from one of these %A" s)
-                let stream = IO.File.ReadAllText x
+                let stream = IO.File.ReadAllText (fileEnv.[x])
                 let s = s.Add x
                 let ds, e, s
                     = parseInternal x stream
-                    |> openImports env scope
+                    |> openImports fileEnv env scope
                 let m
                     = { Module.name   = x
                         decls         = ds }
-                let errs = validate m
+                let errs = validate fileEnv m
                 match errs with
                 | [] -> (DeclImport (Mod m)) :: decls, e.Add(x, m), s
                 | _ ->
@@ -370,9 +374,11 @@ let rec openImports (env: Map<string, Module>) (scope: Set<string>) (decls: Decl
         | _ -> (d :: decls), env, s
     ) ([], env, scope)
 
-let parse streamName stream =
+let parse fileEnv streamName stream =
     let decls = parseInternal streamName stream
-    let ds, env, s = openImports Map.empty (Set.empty.Add streamName) decls
-    { Module.name   = streamName
-      decls         = ds }
+    let ds, env, s = openImports fileEnv Map.empty (Set.empty.Add streamName) decls
+    let m
+        = { Module.name   = streamName
+            decls         = ds }
+    m, validate fileEnv m
 

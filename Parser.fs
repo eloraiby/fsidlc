@@ -350,7 +350,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 73 "Parser.fsy"
-                                        _1 |> List.rev 
+                                        _1 
                    )
 # 73 "Parser.fsy"
                  : 'aModule));

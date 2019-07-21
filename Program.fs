@@ -52,6 +52,21 @@ let checkModuleName (name: string) =
          = name.Length
     else false
 
+let getFolders (folders: string list) : Map<string, string> =
+    folders
+    |> List.map (fun f -> IO.Directory.GetFiles f |> Array.toList)
+    |> List.concat
+    |> List.filter (fun fname -> IO.Path.GetExtension fname = ".fsidl")
+    |> List.map (fun fname ->
+        (IO.Path.GetFileNameWithoutExtension fname), fname)
+    |> List.filter (fun (m, fname) ->
+        if checkModuleName m
+        then true
+        else
+            printfn "warning: igonring %s, module name (%s) is not comformat" fname m
+            false)
+    |> Map.ofList
+
 [<EntryPoint>]
 let main argv =
 
@@ -71,38 +86,28 @@ let main argv =
             let results = argParser.Parse options
             let folders =
                 results.GetResult <@Import_Directory@>
-            printfn "%A" folders
+                |> getFolders
+
 
             if not (checkModuleName streamName)
             then failwith (sprintf "Invalid module name: %s (not respecting module name rules: Start with uppercase and contains letters and digits only)" streamName)
 
-
-            // get all modules from files and make mapping
-            folders
-            |> List.map (fun f -> IO.Directory.GetFiles f |> Array.toList)
-            |> List.concat
-            |> List.filter (fun fname -> IO.Path.HasExtension ".fsidl")
-            |> List.map (fun fname ->
-                (IO.Path.GetFileNameWithoutExtension fname), fname)
-            |> printfn "-> %A"
+            let folders = folders.Add(streamName, IO.Directory.GetCurrentDirectory() + "/" + streamName + ".fsidl")
+            match IO.File.Exists (streamName + ".fsidl") with
+            | true ->
+                try
+                    let stream = IO.File.ReadAllText (streamName + ".fsidl")
+                    let m, errs = parse folders streamName stream
+                    printfn "%A" errs
+                    0
+                with e ->
+                    printfn "Error: %s" e.Message
+                    3
+            | false ->
+                printfn "Module %s (file %s.fsidl) does not exist" streamName streamName
+                2
 
         with e ->
             printfn "%s" e.Message
+            1
 
-
-
-//        let fileMap =
-
-        match IO.File.Exists (streamName + ".fsidl") with
-        | true ->
-            try
-                let stream = IO.File.ReadAllText (streamName + ".fsidl")
-                let res = parse streamName stream
-                //printfn "%A" res
-                0
-            with e ->
-                printfn "Error: %s" e.Message
-                3
-        | false ->
-            printfn "Module %s (file %s.fsidl) does not exist" streamName streamName
-            2
