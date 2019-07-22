@@ -133,7 +133,7 @@ ty:
   | F64                   { TyF64 }
   | TYPENAME              { TyName $1 }
   | TYPENAME DOT TYPENAME { TyQName (fst $1, fst $3, snd $1) }
-  | LPAREN fnTy LPAREN    { $2 }
+  | fnTy                  { $1 }
   | tuple                 { TyTuple $1 }
   | LSQB ty RSQB          { TyVector $2 }
   | LSQB ty MUL INT RSQB  { TyArray ($2, $4 |> uint32) }
@@ -152,14 +152,14 @@ aMember:
 
 memberList:
   | aMember                   { [$1] }
-  | memberList COMMA aMember  { $3 :: $1 }
+  | memberList aMember        { $2 :: $1 }
 
 unionCase:
   | TYPENAME COL ty           { { UnionCase.name = fst $1; UnionCase.pos = snd $1; UnionCase.ty = $3 } }
 
 caseList:
-  | unionCase SC unionCase  { $3 :: [$1] }
-  | caseList SC unionCase   { $3 :: $1 }
+  | unionCase unionCase       { $2 :: [$1] }
+  | caseList unionCase        { $2 :: $1 }
 
 unionDecl:
   | UNION TYPENAME LBRACE caseList RBRACE { DeclUnion { Union.name = fst $2; pos = snd $2; cases = $4 |> List.rev } }
