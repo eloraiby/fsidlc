@@ -25,7 +25,6 @@
 //
 
 open System
-open Validator
 open Argu
 
 type Arguments =
@@ -97,7 +96,7 @@ let main argv =
             | true ->
                 try
                     let stream = IO.File.ReadAllText (streamName + ".fsidl")
-                    let m, errs = parse folders streamName stream
+                    let m, errs = Compiler.parse folders streamName stream
                     printfn "%A" errs
                     0
                 with e ->
