@@ -70,10 +70,10 @@ let private parseInternal streamName schizo =
         res
     with e ->
         let pos = lexbuf.StartPos
-        let line = pos.Line
+        let line = pos.Line + 1
         let column = pos.Column
         let lastToken = String(lexbuf.Lexeme)
-        printfn "%s(%d, %d): error parsing token %s" streamName line column lastToken
+        printfn "%s(%d, %d): %s on token %s" streamName line column e.Message lastToken
         []
 
 let rec checkDuplicateMembers (pathEnv: Map<string, string>) modName (decl: Ast.Decl) =

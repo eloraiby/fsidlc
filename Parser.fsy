@@ -156,6 +156,7 @@ memberList:
 
 unionCase:
   | TYPENAME COL ty           { { UnionCase.name = fst $1; UnionCase.pos = snd $1; UnionCase.ty = $3 } }
+  | error                     { failwith "while parsing union cases" }
 
 caseList:
   | unionCase unionCase       { $2 :: [$1] }
