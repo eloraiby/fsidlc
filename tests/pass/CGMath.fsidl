@@ -107,3 +107,6 @@ object Manifold : QuadMesh, TriMesh {
     quads   : [Quad]
 }
 
+fn vec3Zero () { Vec3 { x = 0, y = 0, z = 0 } }
+fn vec3Dot (a, b) { Vec3 { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z } }
+

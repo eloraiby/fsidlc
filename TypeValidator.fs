@@ -28,7 +28,7 @@
 // TODO: add reference types
 // TODO: for data types, only allow usage of type in a preceeding declaration if the type is a reference type
 
-module Validator
+module TypeValidator
 open Ast
 open System
 
@@ -62,19 +62,6 @@ with
 
     static member create() =
         { Context.qTypeMap = Map.empty }
-
-let private parseInternal streamName schizo =
-    let lexbuf = FSharp.Text.Lexing.LexBuffer<char>.FromString schizo
-    try
-        let res = Parser.start (Lexer.read streamName) lexbuf
-        res
-    with e ->
-        let pos = lexbuf.StartPos
-        let line = pos.Line + 1
-        let column = pos.Column
-        let lastToken = String(lexbuf.Lexeme)
-        printfn "%s(%d, %d): %s on token %s" streamName line column e.Message lastToken
-        []
 
 let rec checkDuplicateMembers (pathEnv: Map<string, string>) modName (decl: Ast.Decl) =
     let checkInMemberList (modName, tyName) (ml: Member list) =
@@ -420,7 +407,7 @@ let validate (pathEnv: Map<string, string>) (m: Module) =
     dupErrors :: errors :: []
     |> List.concat
 
-let rec openImports (fileEnv: Map<string, string>) (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
+let rec openImports (parseInternal: string -> string -> Decl list) (fileEnv: Map<string, string>) (env: Map<string, Module>) (scope: Set<string>) (decls: Decl list) =
     decls
     |> List.fold (fun (decls: Decl list, env: Map<string, Module>, s: Set<string>) d ->
         match d with
@@ -432,7 +419,7 @@ let rec openImports (fileEnv: Map<string, string>) (env: Map<string, Module>) (s
                 let s = s.Add x
                 let ds, e, s
                     = parseInternal x stream
-                    |> openImports fileEnv env scope
+                    |> openImports parseInternal fileEnv env scope
                 let m
                     = { Module.name   = x
                         decls         = ds }
@@ -446,12 +433,3 @@ let rec openImports (fileEnv: Map<string, string>) (env: Map<string, Module>) (s
                 failwith (sprintf "@%A: trying to import '%s': %s" p x e.Message)
         | _ -> (d :: decls), env, s
     ) ([], env, scope)
-
-let parse fileEnv streamName stream =
-    let decls = parseInternal streamName stream
-    let ds, env, s = openImports fileEnv Map.empty (Set.empty.Add streamName) decls
-    let m
-        = { Module.name   = streamName
-            decls         = ds }
-    m, validate fileEnv m
-
