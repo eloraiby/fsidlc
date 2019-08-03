@@ -25,15 +25,16 @@
 //
 
 open System
+open System.IO
 open Argu
 
 type Arguments =
-    | [<AltCommandLine("-i"); ExactlyOnce>] Import_Directory      of paths: string list
+    | [<AltCommandLine("-i")>] Import_Directory      of paths: string list
 with
     interface IArgParserTemplate with
         member s.Usage =
             match s with
-            | Import_Directory _    -> "specify an import directory"
+            | Import_Directory _    -> "specify import directories"
 
 let (|>!) (a: 'A) (b: 'A -> 'B) = b a |> ignore; a
 
@@ -51,7 +52,7 @@ let checkModuleName (name: string) =
          = name.Length
     else false
 
-let getFolders (folders: string list) : Map<string, string> =
+let getFilesInFolders (folders: string list) : Map<string, string> =
     folders
     |> List.map (fun f -> IO.Directory.GetFiles f |> Array.toList)
     |> List.concat
@@ -66,6 +67,9 @@ let getFolders (folders: string list) : Map<string, string> =
             false)
     |> Map.ofList
 
+module List =
+    let cons h t = List.Cons(h, t)
+
 [<EntryPoint>]
 let main argv =
 
@@ -77,33 +81,49 @@ let main argv =
         printfn "%s" usage
         1
     else
-        let streamName = argv.[0]
+        let fileName    = argv.[0]
+        let streamName  = fileName |> Path.GetFileNameWithoutExtension
+        let folder      =
+            match fileName |> Path.GetDirectoryName with
+            | "" -> Directory.GetCurrentDirectory ()
+            | x -> x
+
+        let ext         =
+            match fileName |> Path.GetExtension with
+            | "" -> ".fsidl"
+            | x -> x
 
         let options = if argv.Length > 1 then argv.[1..] else [||]
         printfn "Options: %A" options
         try
-            let results = argParser.Parse options
-            let folders =
-                results.GetResult <@Import_Directory@>
-                |> getFolders
+            let results =
+                match options with
+                | [||] -> []
+                | _ -> (argParser.Parse options).GetResult <@Import_Directory@>
+
+            let files =
+                results
+                |> List.cons folder
+                |> getFilesInFolders
 
 
             if not (checkModuleName streamName)
             then failwith (sprintf "Invalid module name: %s (not respecting module name rules: Start with uppercase and contains letters and digits only)" streamName)
 
-            let folders = folders.Add(streamName, IO.Directory.GetCurrentDirectory() + "/" + streamName + ".fsidl")
-            match IO.File.Exists (streamName + ".fsidl") with
+            let rootFileName = folder + "/" + streamName + ext
+            let files = files.Add(streamName, rootFileName)
+            match IO.File.Exists rootFileName with
             | true ->
                 try
-                    let stream = IO.File.ReadAllText (streamName + ".fsidl")
-                    let m, errs = Compiler.parse folders streamName stream
+                    let stream = IO.File.ReadAllText rootFileName
+                    let m, errs = Compiler.parse files streamName stream
                     printfn "%A" errs
                     0
                 with e ->
                     printfn "Error: %s" e.Message
                     3
             | false ->
-                printfn "Module %s (file %s.fsidl) does not exist" streamName streamName
+                printfn "Module %s (file %s) does not exist" streamName rootFileName
                 2
 
         with e ->

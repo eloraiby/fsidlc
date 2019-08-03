@@ -17,6 +17,7 @@
     <Compile Include="Lexer.fs" />
     <Compile Include="TypeValidator.fs" />
     <Compile Include="Compiler.fs" />
+    <Compile Include="Backend.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
