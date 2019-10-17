@@ -35,7 +35,25 @@ struct Vec4 {
 }
 
 vec4Zero        : Vec4
+vec4Zero        = 0.0f 0.0f 0.0f 0.0f Vec4;
+
 vec4Add         : (Vec4, Vec4) -> Vec4
+vec4Add         =
+    -> b
+    -> a
+    a.x b.x addf -> vx
+    a.y b.y addf -> vy
+    a.z b.z addf -> vz
+    a.w b.w addf -> vw
+    vx vy vz vw Vec4;
+
+vec4Add  a  b  =
+    a.x b.x addf -> vx
+    a.y b.y addf -> vy
+    a.z b.z addf -> vz
+    a.w b.w addf -> vw
+    vx vy vz vw Vec4;
+
 vec4Sub         : (Vec4, Vec4) -> Vec4
 vec4Mulf        : (Vec4, F32)  -> Vec4
 vec4Divf        : (Vec4, F32)  -> Vec4

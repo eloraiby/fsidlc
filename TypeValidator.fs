@@ -32,13 +32,13 @@ module TypeValidator
 open Ast
 open System
 
-type RefTy =
+type AccessTy =
     | ValueType
     | RefType
 
 type TypeEntry
     = { fullName    : string * string
-        refType     : RefTy
+        access      : AccessTy
         pos         : Position
         referredTypes : Set<string * string> }
 with
@@ -47,9 +47,9 @@ with
 type Context
     = { qTypeMap    : Map<string * string, TypeEntry> }
 with
-    member x.add (modName: string, tyName: string, refTy: RefTy, pos: Position, referred: Set<string * string>) =
+    member x.add (modName: string, tyName: string, access: AccessTy, pos: Position, referred: Set<string * string>) =
         { x with
-            qTypeMap    = x.qTypeMap.Add((modName, tyName), { fullName = modName, tyName; refType = refTy; pos = pos; referredTypes = referred}) }
+            qTypeMap    = x.qTypeMap.Add((modName, tyName), { fullName = modName, tyName; access = access; pos = pos; referredTypes = referred}) }
 
     member x.tryFindQ (ty: string * string) = x.qTypeMap.TryFind ty
 
@@ -202,25 +202,25 @@ let rec validateType (pathEnv: Map<string, string>) (modName: string) (ctx: Cont
     | TyS64
     | TyF32
     | TyF64 -> []
-    | Ty.TyName (n, p) ->
+    | TyName (n, p) ->
         match ctx.tryFindQ (modName, n) with
         | Some x ->
-            match x.refType, x.referredTypes.Contains (modName, n) with
+            match x.access, x.referredTypes.Contains (modName, n) with
             | ValueType, true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
             | _ -> []
         | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] n p) :: []
-    | Ty.TyQName (m, n, p) ->
+    | TyQName (m, n, p) ->
         match ctx.tryFindQ (m, n) with
         | Some x ->
-            match x.refType, x.referredTypes.Contains (m, n) with
+            match x.access, x.referredTypes.Contains (m, n) with
             | ValueType, true -> (sprintf "in module %s, type %s @%A refers to itself" pathEnv.[modName] n p) :: []
             | _ -> []
         | None   -> (sprintf "in module %s, undeclared type %s @%A" pathEnv.[modName] n p) :: []
-    | Ty.TyTuple tys ->
+    | TyTuple tys ->
         tys
         |> List.map (fun ty -> ty |> extractTy |> validateType pathEnv modName ctx)
         |> List.concat
-    | Ty.TyFnSig (arg, ret) ->
+    | TyFnSig (arg, ret) ->
         let argRes
             = arg
             |> validateType pathEnv modName ctx
