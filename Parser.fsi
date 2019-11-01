@@ -93,6 +93,7 @@ type nonTerminalId =
     | NONTERM_tuple
     | NONTERM_typeName
     | NONTERM_fnTy
+    | NONTERM_minTy
     | NONTERM_ty
     | NONTERM_tupleList
     | NONTERM_funcDecl

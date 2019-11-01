@@ -75,7 +75,7 @@ let (|>|) a b = b a; a
 %token MINUS
 %token EOF
 
-//%right ARROW
+//%right RARROW
 
 %type <Decl list> start
 
@@ -106,6 +106,7 @@ importDecl:
 ifaceDecl:
   | INTERFACE TYPENAME LBRACE memberList RBRACE { DeclInterface { Interface.name = fst $2; Interface.pos = snd $2; members = $4 |> List.rev } }
 
+// (T, T, T)
 tuple:
   | LPAREN tupleList RPAREN { $2 |> List.rev }
 
@@ -113,11 +114,13 @@ typeName:
   | TYPENAME DOT TYPENAME { Qualified (fst $1, fst $3, snd $1) }
   | TYPENAME              { Simple (fst $1, snd $1) }
 
+// T -> T
+// T -> T -> T
 fnTy:
-  | ty RARROW ty          { TyFnSig($1, $3) }
-  | fnTy RARROW ty        { TyFnSig($1, $3) }
+  | minTy RARROW minTy    { TyFnSig($1, $3) }
+  | fnTy RARROW minTy     { TyFnSig($1, $3) }
 
-ty:
+minTy:
   | UNIT                  { TyUnit }
   | BOOL                  { TyBool }
   | CHAR                  { TyChar }
@@ -133,19 +136,21 @@ ty:
   | F64                   { TyF64 }
   | TYPENAME              { TyName $1 }
   | TYPENAME DOT TYPENAME { TyQName (fst $1, fst $3, snd $1) }
-  | fnTy                  { $1 }
   | tuple                 { TyTuple $1 }
   | LSQB ty RSQB          { TyVector $2 }
   | LSQB ty MUL INT RSQB  { TyArray ($2, $4 |> uint32) }
 
+ty:
+  | minTy                 { $1 }
+  | fnTy                  { $1 }
 
+// T, T, T
 tupleList:
   | ty COMMA ty             { $3 :: [$1] }
   | tupleList COMMA ty      { $3 :: $1 }
 
 funcDecl:
   | IDENTIFIER COL ty       { DeclFunc ($1, $3) }
-  | IDENTIFIER COL fnTy     { DeclFunc ($1, $3) }
 
 aMember:
   | IDENTIFIER COL ty { { Member.name = fst $1; Member.pos = snd $1; Member.ty = $3 } }
